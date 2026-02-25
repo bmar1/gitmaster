@@ -1,6 +1,16 @@
+/**
+ * Dependency Service
+ *
+ * Scans a repository's file tree to find dependency manifest files across 11 ecosystems
+ * (npm, Maven, Gradle, pip, Pipenv, Poetry, Cargo, Go, Gemfile, Composer, NuGet),
+ * fetches their contents, and parses them into a normalized DependencyManifest structure
+ * with production/development dependency separation.
+ */
+
 import { DependencyInfo, DependencyManifest, ManifestType, GitHubTreeItem } from '../types';
 import { batchGetFileContents } from './github.service';
 
+/** Regex patterns to identify dependency manifests anywhere in the file tree. */
 const MANIFEST_PATTERNS: { pattern: RegExp; type: ManifestType }[] = [
   { pattern: /^(.*\/)?package\.json$/, type: 'npm' },
   { pattern: /^(.*\/)?pom\.xml$/, type: 'maven' },
@@ -15,8 +25,13 @@ const MANIFEST_PATTERNS: { pattern: RegExp; type: ManifestType }[] = [
   { pattern: /^(.*\/)?.*\.csproj$/, type: 'nuget' },
 ];
 
+/** Directories that contain vendored/generated code — skip manifests inside these. */
 const EXCLUDED_DIRS = ['node_modules', 'vendor', '.git', 'dist', 'build', 'target', '__pycache__'];
 
+/**
+ * Scans the flat GitHub tree for files matching any known manifest pattern.
+ * Skips files inside excluded directories to avoid vendored dependencies.
+ */
 export function findManifestFiles(tree: GitHubTreeItem[]): { path: string; type: ManifestType }[] {
   const manifests: { path: string; type: ManifestType }[] = [];
 
@@ -35,6 +50,13 @@ export function findManifestFiles(tree: GitHubTreeItem[]): { path: string; type:
   return manifests;
 }
 
+/**
+ * Main entry point: finds all manifest files, fetches their contents in batch,
+ * parses each one, and returns aggregated dependency info.
+ *
+ * Uses batchGetFileContents to minimize API calls — 1 GraphQL call when
+ * authenticated, or N parallel REST calls when unauthenticated.
+ */
 export async function extractAllDependencies(
   owner: string,
   repo: string,
@@ -67,6 +89,7 @@ export async function extractAllDependencies(
   };
 }
 
+/** Routes raw file content to the appropriate ecosystem-specific parser. */
 function parseManifest(content: string, path: string, type: ManifestType): DependencyManifest | null {
   switch (type) {
     case 'npm': return parseNpm(content, path);
@@ -84,6 +107,11 @@ function parseManifest(content: string, path: string, type: ManifestType): Depen
   }
 }
 
+// ─── Ecosystem-specific parsers ──────────────────────────────────────────────
+// Each parser extracts { production, development } dependency maps from the
+// raw file content. Returns null if no dependencies are found.
+
+/** npm/Yarn: JSON parse, reads `dependencies` and `devDependencies` keys. */
 function parseNpm(content: string, path: string): DependencyManifest | null {
   try {
     const pkg = JSON.parse(content);
@@ -99,10 +127,15 @@ function parseNpm(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Maven: regex-based XML extraction. Pulls <dependency> blocks and reads
+ * groupId, artifactId, version, and scope. Test-scoped deps go to development.
+ */
 function parseMaven(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
     const development: Record<string, string> = {};
+    // Matches <dependency> blocks with optional version and scope tags
     const depRegex = /<dependency>\s*<groupId>(.*?)<\/groupId>\s*<artifactId>(.*?)<\/artifactId>(?:\s*<version>(.*?)<\/version>)?(?:\s*<scope>(.*?)<\/scope>)?/gs;
     let match;
     while ((match = depRegex.exec(content)) !== null) {
@@ -126,6 +159,11 @@ function parseMaven(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Gradle: regex-based extraction of dependency declarations.
+ * Matches configuration keywords (implementation, api, testImplementation, etc.)
+ * followed by a group:artifact:version string.
+ */
 function parseGradle(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -135,6 +173,7 @@ function parseGradle(content: string, path: string): DependencyManifest | null {
     while ((match = depRegex.exec(content)) !== null) {
       const keyword = match[1];
       const dep = match[2];
+      // Gradle deps use group:artifact:version format
       const parts = dep.split(':');
       const name = parts.length >= 2 ? `${parts[0]}:${parts[1]}` : dep;
       const version = parts[2] || 'latest';
@@ -155,6 +194,7 @@ function parseGradle(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/** pip: line-by-line parse of requirements.txt. Skips comments (#) and flags (-). */
 function parsePip(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -172,6 +212,7 @@ function parsePip(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/** Pipenv: TOML-like section parsing. [packages] = prod, [dev-packages] = dev. */
 function parsePipenv(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -194,6 +235,11 @@ function parsePipenv(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Poetry (pyproject.toml): section-based parsing.
+ * Handles both old [tool.poetry.dev-dependencies] and new
+ * [tool.poetry.group.dev.dependencies] formats. Excludes `python` itself.
+ */
 function parsePoetry(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -218,6 +264,11 @@ function parsePoetry(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Cargo (Rust): section-based TOML parsing.
+ * Keeps parsing within [dependencies.*] sub-tables (e.g. [dependencies.serde])
+ * to handle inline table declarations.
+ */
 function parseCargo(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -227,6 +278,7 @@ function parseCargo(content: string, path: string): DependencyManifest | null {
       const trimmed = line.trim();
       if (trimmed === '[dependencies]') { section = 'prod'; continue; }
       if (trimmed === '[dev-dependencies]') { section = 'dev'; continue; }
+      // Stay in current section for sub-tables like [dependencies.serde]
       if (trimmed.startsWith('[') && !trimmed.startsWith('[dependencies.') && !trimmed.startsWith('[dev-dependencies.')) { section = ''; continue; }
       const match = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*"?(.+?)"?\s*$/);
       if (match) {
@@ -242,9 +294,14 @@ function parseCargo(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Go Modules: extracts dependencies from `require` blocks and single-line
+ * require statements. Go doesn't have a dev dependency concept.
+ */
 function parseGoMod(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
+    // Multi-line require blocks: require ( ... )
     const requireRegex = /require\s*\(([\s\S]*?)\)/g;
     let block = requireRegex.exec(content);
     while (block) {
@@ -255,6 +312,7 @@ function parseGoMod(content: string, path: string): DependencyManifest | null {
       }
       block = requireRegex.exec(content);
     }
+    // Single-line require statements: require module/path v1.2.3
     const singleReq = /^require\s+(\S+)\s+(v\S+)/gm;
     let sm;
     while ((sm = singleReq.exec(content)) !== null) {
@@ -265,6 +323,10 @@ function parseGoMod(content: string, path: string): DependencyManifest | null {
   } catch { return null; }
 }
 
+/**
+ * Ruby Gemfile: parses `gem 'name', 'version'` declarations.
+ * Gems inside `group :development` blocks are classified as dev dependencies.
+ */
 function parseGemfile(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};
@@ -288,6 +350,11 @@ function parseGemfile(content: string, path: string): DependencyManifest | null 
   } catch { return null; }
 }
 
+/**
+ * Composer (PHP): JSON parse, reads `require` and `require-dev`.
+ * Filters out the `php` runtime itself and `ext-*` PHP extensions
+ * since those aren't installable packages.
+ */
 function parseComposer(content: string, path: string): DependencyManifest | null {
   try {
     const pkg = JSON.parse(content);
@@ -302,6 +369,7 @@ function parseComposer(content: string, path: string): DependencyManifest | null
   } catch { return null; }
 }
 
+/** NuGet (.csproj): XML regex extraction of <PackageReference Include="..." Version="..." /> elements. */
 function parseNuget(content: string, path: string): DependencyManifest | null {
   try {
     const production: Record<string, string> = {};

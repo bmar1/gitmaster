@@ -1,11 +1,21 @@
+/**
+ * File Tree Service
+ *
+ * Transforms the flat array returned by GitHub's Git Tree API into a nested
+ * FileNode hierarchy suitable for the frontend tree view. Also computes
+ * language statistics (by file size) and overall file/directory counts.
+ */
+
 import { GitHubTreeItem, FileNode, LanguageStats, FileStats } from '../types';
 
+/** Directories containing generated or vendored code — excluded from all stats. */
 const EXCLUDED_PATHS = [
   '.git', 'node_modules', 'dist', 'build', '.next', 'coverage',
   '__pycache__', '.pytest_cache', 'target', 'vendor', '.gradle',
   '.idea', '.vscode', '.settings', 'bin', 'obj',
 ];
 
+/** Maps file extensions to human-readable language names. */
 const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript',
   js: 'JavaScript', jsx: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript',
@@ -44,6 +54,7 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   sol: 'Solidity',
 };
 
+/** Hex color for each language (used in the frontend pie/bar charts). */
 const LANGUAGE_COLORS: Record<string, string> = {
   TypeScript: '#3178c6', JavaScript: '#f1e05a', Python: '#3572a5',
   Java: '#b07219', Kotlin: '#a97bff', Rust: '#dea584',
@@ -59,6 +70,14 @@ const LANGUAGE_COLORS: Record<string, string> = {
   Lua: '#000080', R: '#198ce7',
 };
 
+/**
+ * Converts the flat GitHub tree into a nested FileNode tree.
+ *
+ * Two-pass algorithm:
+ *  Pass 1 — create a FileNode for each item and store it in a path-keyed map.
+ *  Pass 2 — walk the items again; for each non-root item, attach it as a child
+ *           of its parent directory node (looked up by trimming the last path segment).
+ */
 export function buildFileTree(githubTree: GitHubTreeItem[]): FileNode[] {
   const filteredTree = githubTree.filter(item => {
     return !EXCLUDED_PATHS.some(excluded =>
@@ -69,6 +88,7 @@ export function buildFileTree(githubTree: GitHubTreeItem[]): FileNode[] {
   const fileMap = new Map<string, FileNode>();
   const rootNodes: FileNode[] = [];
 
+  // Pass 1: create nodes
   filteredTree.forEach(item => {
     const pathParts = item.path.split('/');
     const name = pathParts[pathParts.length - 1];
@@ -86,6 +106,7 @@ export function buildFileTree(githubTree: GitHubTreeItem[]): FileNode[] {
     fileMap.set(item.path, node);
   });
 
+  // Pass 2: link children to parents
   filteredTree.forEach(item => {
     const node = fileMap.get(item.path);
     if (!node) return;
@@ -105,6 +126,11 @@ export function buildFileTree(githubTree: GitHubTreeItem[]): FileNode[] {
   return rootNodes;
 }
 
+/**
+ * Computes language distribution stats based on file size.
+ * Percentage is calculated as (language bytes / total code bytes) * 100,
+ * rounded to one decimal place. Results sorted by size descending.
+ */
 export function computeLanguageStats(githubTree: GitHubTreeItem[]): LanguageStats[] {
   const langMap = new Map<string, { fileCount: number; totalSize: number }>();
   let totalSizeAll = 0;
@@ -145,6 +171,10 @@ export function computeLanguageStats(githubTree: GitHubTreeItem[]): LanguageStat
   return stats.sort((a, b) => b.totalSize - a.totalSize);
 }
 
+/**
+ * Computes aggregate file statistics: total files, directories, combined size,
+ * average file size, and the 10 largest files (useful for identifying bloat).
+ */
 export function computeFileStats(githubTree: GitHubTreeItem[]): FileStats {
   let totalFiles = 0;
   let totalDirectories = 0;

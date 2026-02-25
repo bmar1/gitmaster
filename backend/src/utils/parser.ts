@@ -1,5 +1,8 @@
+/** URL parsing utilities for extracting owner/repo from various GitHub URL formats. */
+
 import { ParsedGitHubUrl } from '../types';
 
+/** Strips protocol, www, github.com prefix, and .git suffix to extract owner + repo. */
 export function parseGitHubUrl(url: string): ParsedGitHubUrl {
   let cleanUrl = url.trim();
   

@@ -1,3 +1,10 @@
+/**
+ * GitMaster Backend — Express Server Entry Point
+ *
+ * Sets up CORS (allowing localhost dev ports and Vercel deploys),
+ * JSON body parsing, the analysis API router, and global error handling.
+ */
+
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';

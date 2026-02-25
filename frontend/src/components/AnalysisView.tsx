@@ -1,3 +1,10 @@
+/**
+ * AnalysisView — Main results display after a repo is analyzed.
+ *
+ * Renders the repository header (name, description, stats) and a tabbed
+ * interface with five views: Overview, Architecture, Insights, Files, and Dependencies.
+ */
+
 import { useState } from 'react';
 import { AnalysisResult } from '../types';
 import { FileTreeView } from './FileTreeView';

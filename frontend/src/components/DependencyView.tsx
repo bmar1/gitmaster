@@ -1,10 +1,17 @@
+/**
+ * DependencyView — Categorized dependency browser.
+ *
+ * Groups all dependencies from every manifest into functional categories
+ * (frontend, backend, testing, etc.) and displays them with package manager
+ * badges and short descriptions for each known package.
+ */
+
 import { DependencyInfo, DependencyManifest } from '../types';
 import {
   Package, Layout, Server, TestTube2, Wrench, Database, Cloud,
   Paintbrush, Shield, Boxes, Plug, FileCode
 } from 'lucide-react';
 
-// --- Manifest ecosystem descriptions ---
 const MANIFEST_DESCRIPTIONS: Record<string, { label: string; desc: string }> = {
   npm:      { label: 'npm',      desc: 'Node.js / JavaScript package manager' },
   maven:    { label: 'Maven',    desc: 'Java build automation & dependency manager' },

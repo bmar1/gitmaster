@@ -1,3 +1,8 @@
+/**
+ * RepoInput — Landing page with hero section, capabilities grid,
+ * "how it works" steps, and bottom CTA. Contains the main URL input form.
+ */
+
 import { useState } from 'react';
 import {
   Search, ArrowRight, FolderTree, Package, Network,
