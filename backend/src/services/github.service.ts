@@ -79,9 +79,9 @@ export async function getFileContent(owner: string, repo: string, path: string):
 }
 
 /**
- * Batch-fetch multiple file contents in a single GraphQL request.
- * Falls back to individual REST calls if GraphQL fails.
- * Saves (N-1) API calls per analysis.
+ * Batch-fetch multiple file contents.
+ * Uses a single GraphQL request when authenticated (saves N-1 API calls).
+ * Falls back to individual REST calls when unauthenticated or if GraphQL fails.
  */
 export async function batchGetFileContents(
   owner: string,
@@ -92,46 +92,49 @@ export async function batchGetFileContents(
   const results = new Map<string, string>();
   if (paths.length === 0) return results;
 
-  try {
-    const aliases = paths.map((p, i) => {
-      const safeAlias = `f${i}`;
-      const expr = `${branch}:${p}`;
-      return `${safeAlias}: object(expression: ${JSON.stringify(expr)}) { ... on Blob { text } }`;
-    });
+  if (token) {
+    try {
+      const aliases = paths.map((p, i) => {
+        const safeAlias = `f${i}`;
+        const expr = `${branch}:${p}`;
+        return `${safeAlias}: object(expression: ${JSON.stringify(expr)}) { ... on Blob { text } }`;
+      });
 
-    const query = `query($owner: String!, $name: String!) {
-      repository(owner: $owner, name: $name) {
-        ${aliases.join('\n        ')}
-      }
-    }`;
+      const query = `query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          ${aliases.join('\n          ')}
+        }
+      }`;
 
-    const response: any = await octokit.graphql(query, { owner, name: repo });
-    const repoData = response.repository;
+      const response: any = await octokit.graphql(query, { owner, name: repo });
+      const repoData = response.repository;
 
-    paths.forEach((p, i) => {
-      const alias = `f${i}`;
-      const blob = repoData[alias];
-      if (blob?.text) {
-        results.set(p, blob.text);
-      }
-    });
+      paths.forEach((p, i) => {
+        const alias = `f${i}`;
+        const blob = repoData[alias];
+        if (blob?.text) {
+          results.set(p, blob.text);
+        }
+      });
 
-    return results;
-  } catch {
-    // GraphQL unavailable or failed — fall back to individual REST calls
-    const fetches = await Promise.allSettled(
-      paths.map(async (p) => {
-        const content = await getFileContent(owner, repo, p);
-        return { path: p, content };
-      })
-    );
-
-    for (const r of fetches) {
-      if (r.status === 'fulfilled') {
-        results.set(r.value.path, r.value.content);
-      }
+      return results;
+    } catch {
+      // GraphQL failed — fall through to REST
     }
-
-    return results;
   }
+
+  const fetches = await Promise.allSettled(
+    paths.map(async (p) => {
+      const content = await getFileContent(owner, repo, p);
+      return { path: p, content };
+    })
+  );
+
+  for (const r of fetches) {
+    if (r.status === 'fulfilled') {
+      results.set(r.value.path, r.value.content);
+    }
+  }
+
+  return results;
 }

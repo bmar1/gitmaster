@@ -1,31 +1,74 @@
 import { DependencyInfo, DependencyManifest } from '../types';
-import { Package, FileCode, Info } from 'lucide-react';
-import { useState } from 'react';
+import {
+  Package, Layout, Server, TestTube2, Wrench, Database, Cloud,
+  Paintbrush, Shield, Boxes, Plug, FileCode
+} from 'lucide-react';
 
-const MANIFEST_LABELS: Record<string, string> = {
-  npm: 'npm (package.json)',
-  maven: 'Maven (pom.xml)',
-  gradle: 'Gradle (build.gradle)',
-  pip: 'pip (requirements.txt)',
-  pipenv: 'Pipenv (Pipfile)',
-  poetry: 'Poetry (pyproject.toml)',
-  cargo: 'Cargo (Cargo.toml)',
-  go: 'Go Modules (go.mod)',
-  gemfile: 'Bundler (Gemfile)',
-  composer: 'Composer (composer.json)',
-  nuget: 'NuGet (.csproj)',
+// --- Manifest ecosystem descriptions ---
+const MANIFEST_DESCRIPTIONS: Record<string, { label: string; desc: string }> = {
+  npm:      { label: 'npm',      desc: 'Node.js / JavaScript package manager' },
+  maven:    { label: 'Maven',    desc: 'Java build automation & dependency manager' },
+  gradle:   { label: 'Gradle',   desc: 'JVM build tool with Groovy/Kotlin DSL' },
+  pip:      { label: 'pip',      desc: 'Python package installer' },
+  pipenv:   { label: 'Pipenv',   desc: 'Python virtualenv & dependency manager' },
+  poetry:   { label: 'Poetry',   desc: 'Modern Python packaging & dependency tool' },
+  cargo:    { label: 'Cargo',    desc: 'Rust package manager & build system' },
+  go:       { label: 'Go Modules', desc: 'Go dependency management system' },
+  gemfile:  { label: 'Bundler',  desc: 'Ruby dependency manager' },
+  composer: { label: 'Composer', desc: 'PHP dependency manager' },
+  nuget:    { label: 'NuGet',    desc: '.NET package manager' },
 };
 
-const PKG_DESCRIPTIONS: Record<string, string> = {
-  // Frontend frameworks
+// --- Dependency category classification ---
+type DepCategory = 'frontend' | 'backend' | 'testing' | 'build' | 'database' | 'styling' | 'devops' | 'auth' | 'utility' | 'other';
+
+const CATEGORY_META: Record<DepCategory, { label: string; icon: typeof Layout; accent: string }> = {
+  frontend: { label: 'Frontend',      icon: Layout,     accent: 'text-accent' },
+  backend:  { label: 'Backend',       icon: Server,     accent: 'text-sage' },
+  database: { label: 'Database',      icon: Database,   accent: 'text-sage' },
+  auth:     { label: 'Auth & Security', icon: Shield,   accent: 'text-ochre' },
+  testing:  { label: 'Testing',       icon: TestTube2,  accent: 'text-ochre' },
+  styling:  { label: 'Styling & UI',  icon: Paintbrush, accent: 'text-accent' },
+  build:    { label: 'Build & Tooling', icon: Wrench,   accent: 'text-secondary' },
+  devops:   { label: 'DevOps & Cloud', icon: Cloud,     accent: 'text-mist' },
+  utility:  { label: 'Utilities',     icon: Plug,       accent: 'text-muted' },
+  other:    { label: 'Other',         icon: Boxes,      accent: 'text-muted' },
+};
+
+const CATEGORY_ORDER: DepCategory[] = [
+  'frontend', 'backend', 'database', 'auth', 'styling', 'testing', 'build', 'devops', 'utility', 'other',
+];
+
+// Maps package name patterns to categories
+const DEP_CATEGORY_RULES: { test: (name: string) => boolean; category: DepCategory }[] = [
+  // Frontend
+  { test: n => /^(react|react-dom|vue|@vue\/|angular|@angular\/|svelte|solid-js|preact|next|nuxt|gatsby|remix|astro|@tanstack\/react|swr|react-router|react-router-dom|vue-router|wouter|redux|@reduxjs\/|react-redux|zustand|recoil|mobx|jotai|valtio|pinia|vuex|xstate|ngrx|framer-motion|react-native|expo|@react-navigation)/.test(n), category: 'frontend' },
+  // Styling
+  { test: n => /^(tailwindcss|styled-components|@emotion\/|sass|less|postcss|autoprefixer|@mui\/|@chakra-ui\/|antd|@radix-ui\/|@headlessui\/|bootstrap|bulma|lucide|react-icons|clsx|class-variance-authority|tailwind-merge|@mantine)/.test(n), category: 'styling' },
+  // Backend
+  { test: n => /^(express|fastify|koa|hapi|@nestjs\/|django|flask|fastapi|uvicorn|gunicorn|celery|rails|sinatra|laravel|symfony|actix-web|axum|gin|echo|fiber|puma|sidekiq|spring-boot|socket\.io|ws|cors|helmet|compression|morgan|multer)/.test(n), category: 'backend' },
+  // Database
+  { test: n => /^(prisma|@prisma\/|typeorm|sequelize|mongoose|mongodb|pg|mysql2|better-sqlite3|drizzle-orm|knex|redis|ioredis|sqlalchemy|gorm|hibernate|spring-boot-starter-data)/.test(n), category: 'database' },
+  // Auth
+  { test: n => /^(passport|jsonwebtoken|bcrypt|bcryptjs|next-auth|@auth\/|lucia|devise|spring-boot-starter-security)/.test(n), category: 'auth' },
+  // Testing
+  { test: n => /^(jest|vitest|mocha|chai|cypress|playwright|@playwright\/|@testing-library\/|supertest|sinon|nock|msw|pytest|rspec|junit|mockito|phpunit|testify|spring-boot-starter-test)/.test(n), category: 'testing' },
+  // Build & Tooling
+  { test: n => /^(vite|webpack|esbuild|rollup|parcel|turbo|tsup|swc|typescript|ts-node|tsx|eslint|@typescript-eslint\/|prettier|husky|lint-staged|commitlint|nodemon|concurrently|lerna|nx|@changesets\/|black|flake8|mypy|poetry|cargo|clap|cobra|viper)/.test(n), category: 'build' },
+  // DevOps & Cloud
+  { test: n => /^(aws-sdk|@aws-sdk\/|firebase|firebase-admin|@google-cloud\/|stripe|@stripe\/|twilio|sendgrid|@sentry\/|newrelic|datadog|docker|boto3|puppeteer|cheerio)/.test(n), category: 'devops' },
+  // Utility (common known ones)
+  { test: n => /^(lodash|underscore|ramda|date-fns|dayjs|moment|uuid|nanoid|zod|yup|joi|class-validator|dotenv|chalk|commander|yargs|inquirer|ora|sharp|rxjs|immer|axios|got|node-fetch|undici|ky|graphql-request|@apollo\/|urql|requests|httpx|reqwest|pydantic|marked|highlight\.js|prismjs|d3|chart\.js|recharts|three|@react-three\/|gsap|octokit|winston|pino)/.test(n), category: 'utility' },
+];
+
+// --- Package descriptions (always-visible one-liners) ---
+const PKG_DESC: Record<string, string> = {
   'react': 'UI library for building component-based interfaces',
   'react-dom': 'React renderer for web browsers',
   'vue': 'Progressive framework for building UIs',
-  'angular': 'Platform for building mobile & desktop web apps',
   '@angular/core': 'Core Angular framework',
   '@angular/common': 'Common Angular utilities & pipes',
   '@angular/router': 'Client-side routing for Angular',
-  '@angular/forms': 'Form handling for Angular',
   'svelte': 'Compile-time reactive UI framework',
   'solid-js': 'Declarative, reactive UI library',
   'preact': 'Lightweight React alternative (3KB)',
@@ -34,102 +77,68 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'gatsby': 'React-based static site generator',
   'remix': 'Full-stack React framework',
   'astro': 'Content-focused web framework with island architecture',
-
-  // State management
   'redux': 'Predictable state container for JS apps',
   '@reduxjs/toolkit': 'Opinionated Redux with best practices',
   'react-redux': 'Official React bindings for Redux',
   'zustand': 'Lightweight state management for React',
-  'recoil': 'Experimental state management by Meta',
   'mobx': 'Reactive state management with observables',
   'jotai': 'Primitive, flexible state management for React',
-  'valtio': 'Proxy-based state management for React',
   'pinia': 'Intuitive state management for Vue',
   'vuex': 'Centralized state management for Vue',
   'xstate': 'State machines and statecharts for JS',
-  'ngrx': 'Reactive state management for Angular',
-
-  // Routing
   'react-router': 'Declarative routing for React',
   'react-router-dom': 'DOM bindings for React Router',
   'vue-router': 'Official router for Vue.js',
-  'wouter': 'Tiny router for React and Preact',
-
-  // Data fetching
   '@tanstack/react-query': 'Async state management & server cache',
   'swr': 'React hooks for data fetching with caching',
   'axios': 'Promise-based HTTP client',
   'got': 'HTTP request library for Node.js',
   'node-fetch': 'Fetch API for Node.js',
   'undici': 'Fast HTTP/1.1 client for Node.js',
-  'ky': 'Tiny HTTP client based on Fetch API',
-  'graphql-request': 'Minimal GraphQL client',
-  'apollo-client': 'Full-featured GraphQL client',
   '@apollo/client': 'Full-featured GraphQL client for React',
   'urql': 'Lightweight GraphQL client',
-
-  // Styling
   'tailwindcss': 'Utility-first CSS framework',
   'styled-components': 'CSS-in-JS with tagged template literals',
   '@emotion/react': 'CSS-in-JS library with React support',
   '@emotion/styled': 'Styled API for Emotion',
   'sass': 'CSS preprocessor with variables & nesting',
-  'less': 'CSS preprocessor',
   'postcss': 'CSS transformation tool with plugins',
   'autoprefixer': 'Auto-adds vendor prefixes to CSS',
   '@mui/material': 'Material Design component library for React',
   '@chakra-ui/react': 'Accessible component library for React',
   'antd': 'Enterprise UI component library for React',
-  'radix-ui': 'Unstyled, accessible UI primitives',
   '@radix-ui/react-dialog': 'Accessible dialog/modal primitive',
   '@headlessui/react': 'Unstyled, accessible UI components',
-  'shadcn-ui': 'Re-usable components built on Radix & Tailwind',
   'bootstrap': 'Popular CSS framework for responsive design',
-  'bulma': 'Modern CSS framework based on Flexbox',
   'lucide-react': 'Beautiful & consistent icon library for React',
   'react-icons': 'SVG icon packs for React',
-
-  // Backend frameworks
+  'clsx': 'Tiny utility for constructing className strings',
+  'tailwind-merge': 'Merge Tailwind classes without conflicts',
   'express': 'Minimal web framework for Node.js',
   'fastify': 'Fast, low-overhead web framework for Node.js',
   'koa': 'Expressive middleware web framework for Node.js',
-  'hapi': 'Framework for building APIs and services',
   '@nestjs/core': 'Progressive Node.js framework',
   '@nestjs/common': 'NestJS common utilities',
-
-  // Python
   'django': 'High-level Python web framework',
   'flask': 'Lightweight Python web framework',
   'fastapi': 'Modern, fast Python API framework',
   'uvicorn': 'Lightning-fast ASGI server for Python',
   'gunicorn': 'Python WSGI HTTP server',
   'celery': 'Distributed task queue for Python',
-  'sqlalchemy': 'Python SQL toolkit and ORM',
-  'pydantic': 'Data validation using Python type hints',
-  'requests': 'HTTP library for Python',
-  'httpx': 'Async HTTP client for Python',
-  'numpy': 'Numerical computing library for Python',
-  'pandas': 'Data analysis and manipulation library',
-  'scipy': 'Scientific computing tools for Python',
-  'matplotlib': 'Plotting and visualization library',
-  'scikit-learn': 'Machine learning library for Python',
-  'tensorflow': 'Open-source ML/deep learning framework',
-  'pytorch': 'Deep learning framework by Meta',
-  'torch': 'Deep learning framework by Meta',
-  'keras': 'High-level neural networks API',
-  'pytest': 'Python testing framework',
-  'black': 'Python code formatter',
-  'flake8': 'Python linting tool',
-  'mypy': 'Static type checker for Python',
-  'poetry': 'Python dependency management and packaging',
-  'pillow': 'Python imaging library (PIL fork)',
-  'beautifulsoup4': 'HTML/XML parser for web scraping',
-  'scrapy': 'Web scraping framework for Python',
-  'boto3': 'AWS SDK for Python',
-
-  // Database & ORM
+  'rails': 'Full-stack Ruby web framework',
+  'sinatra': 'Lightweight Ruby web framework',
+  'laravel/framework': 'Full-stack PHP web framework',
+  'actix-web': 'Powerful web framework for Rust',
+  'axum': 'Ergonomic web framework for Rust',
+  'cors': 'Express middleware for Cross-Origin requests',
+  'helmet': 'Security headers middleware for Express',
+  'compression': 'Response compression middleware',
+  'morgan': 'HTTP request logger for Express',
+  'multer': 'File upload middleware for Express',
+  'socket.io': 'Real-time bidirectional communication',
+  'ws': 'Simple WebSocket implementation for Node.js',
   'prisma': 'Next-gen TypeScript ORM',
-  '@prisma/client': 'Auto-generated database client',
+  '@prisma/client': 'Auto-generated Prisma database client',
   'typeorm': 'TypeScript ORM for SQL databases',
   'sequelize': 'Promise-based ORM for Node.js',
   'mongoose': 'MongoDB object modeling for Node.js',
@@ -141,17 +150,14 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'knex': 'SQL query builder for Node.js',
   'redis': 'Redis client for Node.js',
   'ioredis': 'Full-featured Redis client for Node.js',
-
-  // Auth
+  'sqlalchemy': 'Python SQL toolkit and ORM',
   'passport': 'Authentication middleware for Node.js',
   'jsonwebtoken': 'JWT implementation for Node.js',
   'bcrypt': 'Password hashing library',
   'bcryptjs': 'Pure JS bcrypt implementation',
   'next-auth': 'Authentication for Next.js',
-  '@auth/core': 'Authentication framework core',
   'lucia': 'Auth library for session-based authentication',
-
-  // Testing
+  'devise': 'Authentication solution for Rails',
   'jest': 'JavaScript testing framework by Meta',
   'vitest': 'Vite-native testing framework',
   'mocha': 'Flexible JavaScript testing framework',
@@ -165,8 +171,10 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'sinon': 'Test spies, stubs, and mocks',
   'nock': 'HTTP request mocking for Node.js',
   'msw': 'API mocking using Service Worker',
-
-  // Build tools
+  'pytest': 'Python testing framework',
+  'rspec': 'BDD testing framework for Ruby',
+  'junit': 'Unit testing framework for Java',
+  'mockito': 'Mocking framework for Java unit tests',
   'vite': 'Fast build tool and dev server',
   'webpack': 'Module bundler for JavaScript',
   'esbuild': 'Extremely fast JavaScript/CSS bundler',
@@ -175,8 +183,6 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'turbo': 'High-performance build system for monorepos',
   'tsup': 'Bundle TypeScript libraries with no config',
   'swc': 'Super-fast compiler written in Rust',
-
-  // TypeScript & tooling
   'typescript': 'Typed superset of JavaScript',
   'ts-node': 'TypeScript execution for Node.js',
   'tsx': 'TypeScript execute — enhanced ts-node',
@@ -184,13 +190,14 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'prettier': 'Opinionated code formatter',
   'husky': 'Git hooks made easy',
   'lint-staged': 'Run linters on staged git files',
-  'commitlint': 'Lint commit messages',
   'nodemon': 'Auto-restart Node.js on file changes',
   'concurrently': 'Run multiple commands concurrently',
-
-  // Utilities
+  'black': 'Python code formatter',
+  'flake8': 'Python linting tool',
+  'mypy': 'Static type checker for Python',
+  'lerna': 'Multi-package repository management',
+  'nx': 'Smart monorepo build system',
   'lodash': 'Utility library for common JS operations',
-  'underscore': 'Functional programming helpers for JS',
   'ramda': 'Functional programming library for JS',
   'date-fns': 'Modern JavaScript date utility library',
   'dayjs': 'Lightweight date library (2KB)',
@@ -200,94 +207,65 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   'zod': 'TypeScript-first schema validation',
   'yup': 'Schema validation library',
   'joi': 'Data validation for JavaScript',
-  'class-validator': 'Decorator-based validation for classes',
   'dotenv': 'Loads environment variables from .env files',
-  'cors': 'Express middleware for Cross-Origin requests',
-  'helmet': 'Security headers middleware for Express',
-  'compression': 'Response compression middleware',
-  'morgan': 'HTTP request logger for Express',
   'winston': 'Versatile logging library for Node.js',
   'pino': 'Fast JSON logger for Node.js',
   'chalk': 'Terminal string styling',
   'commander': 'CLI framework for Node.js',
   'yargs': 'CLI argument parser',
-  'inquirer': 'Interactive CLI prompts',
-  'ora': 'Elegant terminal spinner',
   'sharp': 'High-performance image processing',
-  'multer': 'Multipart form data / file upload middleware',
-  'socket.io': 'Real-time bidirectional communication',
-  'ws': 'Simple WebSocket implementation for Node.js',
-  'cheerio': 'Server-side HTML parsing (jQuery-like)',
-  'puppeteer': 'Headless Chrome browser automation',
   'octokit': 'GitHub API client for JavaScript',
   'rxjs': 'Reactive Extensions for JavaScript',
   'immer': 'Immutable state with a mutable API',
-  'clsx': 'Tiny utility for constructing className strings',
-  'class-variance-authority': 'Variant-based className utility',
-  'tailwind-merge': 'Merge Tailwind classes without conflicts',
   'framer-motion': 'Production-ready React animation library',
   'gsap': 'Professional-grade JavaScript animation',
   'three': '3D graphics library for the web',
-  '@react-three/fiber': 'React renderer for Three.js',
   'd3': 'Data-driven document manipulation',
   'chart.js': 'Simple yet flexible charting library',
   'recharts': 'Composable charting library for React',
   'marked': 'Fast Markdown parser and compiler',
   'highlight.js': 'Syntax highlighting for the web',
-  'prismjs': 'Lightweight syntax highlighting',
-
-  // Java / Maven
-  'spring-boot': 'Opinionated Java framework for production apps',
+  'pydantic': 'Data validation using Python type hints',
+  'requests': 'HTTP library for Python',
+  'httpx': 'Async HTTP client for Python',
+  'numpy': 'Numerical computing library for Python',
+  'pandas': 'Data analysis and manipulation library',
+  'scipy': 'Scientific computing tools for Python',
+  'matplotlib': 'Plotting and visualization library',
+  'scikit-learn': 'Machine learning library for Python',
+  'tensorflow': 'Open-source ML/deep learning framework',
+  'torch': 'Deep learning framework by Meta',
+  'keras': 'High-level neural networks API',
+  'pillow': 'Python imaging library (PIL fork)',
+  'beautifulsoup4': 'HTML/XML parser for web scraping',
+  'scrapy': 'Web scraping framework for Python',
+  'boto3': 'AWS SDK for Python',
   'spring-boot-starter-web': 'Spring Boot web & REST support',
   'spring-boot-starter-data-jpa': 'Spring Boot JPA/Hibernate support',
   'spring-boot-starter-security': 'Spring Boot security & auth',
   'spring-boot-starter-test': 'Spring Boot testing support',
   'lombok': 'Java annotation-based boilerplate reduction',
-  'junit': 'Unit testing framework for Java',
-  'mockito': 'Mocking framework for Java unit tests',
   'jackson': 'JSON processor for Java',
   'slf4j': 'Logging facade for Java',
   'logback': 'Logging framework for Java',
   'hibernate': 'Java ORM framework',
   'guava': 'Google core Java libraries',
-  'apache-commons': 'Reusable Java components',
-
-  // Rust
   'serde': 'Serialization framework for Rust',
   'tokio': 'Async runtime for Rust',
-  'actix-web': 'Powerful web framework for Rust',
-  'axum': 'Ergonomic web framework for Rust',
   'reqwest': 'HTTP client for Rust',
   'clap': 'Command-line argument parser for Rust',
   'tracing': 'Application-level tracing for Rust',
   'anyhow': 'Flexible error handling for Rust',
   'thiserror': 'Derive macro for std::error::Error',
-
-  // Go
-  'gin': 'Fast HTTP web framework for Go',
-  'echo': 'High-performance Go web framework',
-  'fiber': 'Express-inspired Go web framework',
   'gorm': 'ORM library for Go',
   'cobra': 'CLI library for Go',
   'viper': 'Configuration management for Go',
   'zap': 'Blazing fast structured logger for Go',
   'testify': 'Testing toolkit for Go',
-
-  // Ruby
-  'rails': 'Full-stack Ruby web framework',
-  'sinatra': 'Lightweight Ruby web framework',
-  'rspec': 'BDD testing framework for Ruby',
-  'devise': 'Authentication solution for Rails',
   'sidekiq': 'Background job processing for Ruby',
   'puma': 'Concurrent web server for Ruby',
-
-  // PHP
-  'laravel/framework': 'Full-stack PHP web framework',
-  'symfony/framework': 'Modular PHP framework',
   'guzzlehttp/guzzle': 'PHP HTTP client',
   'phpunit/phpunit': 'Testing framework for PHP',
-
-  // Cloud & DevOps
   'aws-sdk': 'AWS SDK for JavaScript',
   '@aws-sdk/client-s3': 'AWS S3 client',
   'firebase': 'Google backend-as-a-service platform',
@@ -295,110 +273,107 @@ const PKG_DESCRIPTIONS: Record<string, string> = {
   '@google-cloud/storage': 'Google Cloud Storage client',
   'stripe': 'Payment processing API client',
   '@stripe/stripe-js': 'Stripe.js loading utility',
-  'twilio': 'Cloud communications API client',
-  'sendgrid': 'Email delivery service client',
   '@sentry/node': 'Error tracking for Node.js',
   '@sentry/react': 'Error tracking for React',
-  'newrelic': 'Application performance monitoring',
-  'datadog': 'Monitoring and observability platform',
-
-  // React Native / Mobile
   'react-native': 'Build native mobile apps with React',
   'expo': 'React Native development platform',
   '@react-navigation/native': 'Navigation for React Native',
-  'flutter': 'Google UI toolkit for mobile, web, desktop',
-
-  // Monorepo
-  'lerna': 'Multi-package repository management',
-  'nx': 'Smart monorepo build system',
-  '@changesets/cli': 'Versioning & changelog management',
+  'puppeteer': 'Headless Chrome browser automation',
+  'cheerio': 'Server-side HTML parsing (jQuery-like)',
 };
 
 function getDescription(name: string): string | null {
   const lower = name.toLowerCase();
-  if (PKG_DESCRIPTIONS[lower]) return PKG_DESCRIPTIONS[lower];
-  if (PKG_DESCRIPTIONS[name]) return PKG_DESCRIPTIONS[name];
-
-  for (const [key, desc] of Object.entries(PKG_DESCRIPTIONS)) {
+  if (PKG_DESC[lower]) return PKG_DESC[lower];
+  if (PKG_DESC[name]) return PKG_DESC[name];
+  for (const [key, desc] of Object.entries(PKG_DESC)) {
     if (lower.startsWith(key + '/') || lower === `@types/${key}`) return desc;
   }
   return null;
 }
 
-function DepRow({ name, version }: { name: string; version: string }) {
-  const [showDesc, setShowDesc] = useState(false);
-  const description = getDescription(name);
+function classifyDep(name: string, isDev: boolean): DepCategory {
+  const lower = name.toLowerCase();
+  for (const rule of DEP_CATEGORY_RULES) {
+    if (rule.test(lower)) return rule.category;
+  }
+  if (lower.startsWith('@types/')) return 'build';
+  if (isDev) return 'build';
+  return 'other';
+}
 
+interface CategorizedDep {
+  name: string;
+  version: string;
+  manifestType: string;
+  manifestPath: string;
+  isDev: boolean;
+  description: string | null;
+}
+
+function categorizeAll(manifests: DependencyManifest[]): Map<DepCategory, CategorizedDep[]> {
+  const map = new Map<DepCategory, CategorizedDep[]>();
+
+  for (const m of manifests) {
+    for (const [name, version] of Object.entries(m.production)) {
+      const cat = classifyDep(name, false);
+      const group = map.get(cat) || [];
+      group.push({ name, version, manifestType: m.type, manifestPath: m.path, isDev: false, description: getDescription(name) });
+      map.set(cat, group);
+    }
+    for (const [name, version] of Object.entries(m.development)) {
+      const cat = classifyDep(name, true);
+      const group = map.get(cat) || [];
+      group.push({ name, version, manifestType: m.type, manifestPath: m.path, isDev: true, description: getDescription(name) });
+      map.set(cat, group);
+    }
+  }
+
+  return map;
+}
+
+function DepItem({ dep }: { dep: CategorizedDep }) {
+  const info = MANIFEST_DESCRIPTIONS[dep.manifestType];
   return (
-    <div className="group">
-      <div className="flex items-center justify-between py-1.5 px-3 rounded bg-surface-alt/50 hover:bg-surface-alt transition-colors">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-code text-primary/80 truncate group-hover:text-accent transition-colors">{name}</span>
-          {description && (
-            <button
-              onClick={() => setShowDesc(!showDesc)}
-              className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              title={description}
-            >
-              <Info className="w-3 h-3 text-muted" />
-            </button>
-          )}
-        </div>
-        <span className="text-xs font-code text-muted ml-2 flex-shrink-0">{version}</span>
+    <div className="group py-2.5 px-3 rounded-lg bg-surface-2/50 hover:bg-surface-2 transition-colors border border-transparent hover:border-border/40">
+      <div className="flex items-center gap-2 mb-0.5">
+        <span className="text-sm font-code text-primary font-medium group-hover:text-accent transition-colors truncate">
+          {dep.name}
+        </span>
+        <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <span className="text-[10px] font-code px-1.5 py-0.5 rounded bg-surface-alt text-muted border border-border/30">
+            {info?.label || dep.manifestType}
+          </span>
+          <span className="text-xs font-code text-muted">{dep.version}</span>
+        </span>
       </div>
-      {showDesc && description && (
-        <div className="px-3 py-1 text-xs text-muted font-body leading-relaxed animate-gentle-fade">
-          {description}
-        </div>
+      {dep.description && (
+        <p className="text-xs text-muted/80 font-body leading-relaxed">{dep.description}</p>
       )}
     </div>
   );
 }
 
-function ManifestCard({ manifest }: { manifest: DependencyManifest }) {
-  const prodDeps = Object.entries(manifest.production);
-  const devDeps = Object.entries(manifest.development);
+function CategorySection({ category, deps }: { category: DepCategory; deps: CategorizedDep[] }) {
+  const meta = CATEGORY_META[category];
+  const Icon = meta.icon;
 
   return (
-    <div className="card p-6">
-      <div className="flex items-start gap-3 mb-5">
-        <FileCode className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
-        <div>
-          <h4 className="font-display font-semibold text-primary">
-            {MANIFEST_LABELS[manifest.type] || manifest.type}
-          </h4>
-          <p className="text-xs font-code text-muted mt-0.5">{manifest.path}</p>
+    <div className="card-glow p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 rounded-lg bg-surface-2 flex items-center justify-center">
+          <Icon className={`w-4.5 h-4.5 ${meta.accent}`} />
         </div>
-        <span className="ml-auto pill text-xs">
-          {manifest.totalCount} total
-        </span>
+        <div>
+          <h4 className="font-display font-semibold text-primary text-sm">{meta.label}</h4>
+          <p className="text-[11px] font-code text-muted">{deps.length} package{deps.length !== 1 ? 's' : ''}</p>
+        </div>
       </div>
-
-      {prodDeps.length > 0 && (
-        <div className="mb-5">
-          <h5 className="text-xs font-code text-muted uppercase tracking-wider mb-3">
-            Dependencies ({prodDeps.length})
-          </h5>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {prodDeps.map(([name, version]) => (
-              <DepRow key={name} name={name} version={version} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {devDeps.length > 0 && (
-        <div>
-          <h5 className="text-xs font-code text-muted uppercase tracking-wider mb-3">
-            Dev Dependencies ({devDeps.length})
-          </h5>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {devDeps.map(([name, version]) => (
-              <DepRow key={name} name={name} version={version} />
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="space-y-1.5">
+        {deps.map((dep, i) => (
+          <DepItem key={`${dep.name}-${dep.manifestPath}-${i}`} dep={dep} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -413,18 +388,68 @@ export function DependencyView({ dependencies }: { dependencies: DependencyInfo 
     );
   }
 
+  const categorized = categorizeAll(dependencies.manifests);
+  const manifestTypes = [...new Set(dependencies.manifests.map(m => m.type))];
+
   return (
-    <div className="space-y-6 animate-rise">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted font-body">
-          Found <strong className="text-primary">{dependencies.manifests.length}</strong> manifest{dependencies.manifests.length > 1 ? 's' : ''} with{' '}
-          <strong className="text-primary">{dependencies.totalCount}</strong> total packages
-        </p>
+    <div className="space-y-8 animate-rise">
+      {/* Overview bar */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div>
+            <p className="text-xs font-code text-muted uppercase tracking-wider">Total Packages</p>
+            <p className="font-display text-2xl font-bold text-primary">{dependencies.totalCount}</p>
+          </div>
+          <div className="w-px h-10 bg-border/50" />
+          <div>
+            <p className="text-xs font-code text-muted uppercase tracking-wider">Manifests</p>
+            <p className="font-display text-2xl font-bold text-primary">{dependencies.manifests.length}</p>
+          </div>
+          <div className="w-px h-10 bg-border/50" />
+          <div>
+            <p className="text-xs font-code text-muted uppercase tracking-wider">Production</p>
+            <p className="font-display text-2xl font-bold text-sage">{dependencies.totalDependencies}</p>
+          </div>
+          <div className="w-px h-10 bg-border/50" />
+          <div>
+            <p className="text-xs font-code text-muted uppercase tracking-wider">Development</p>
+            <p className="font-display text-2xl font-bold text-ochre">{dependencies.totalDevDependencies}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {manifestTypes.map(type => {
+            const info = MANIFEST_DESCRIPTIONS[type];
+            const count = dependencies.manifests.filter(m => m.type === type).reduce((s, m) => s + m.totalCount, 0);
+            return (
+              <div key={type} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2 border border-border/30">
+                <FileCode className="w-3.5 h-3.5 text-accent" />
+                <span className="text-xs font-code text-primary font-medium">{info?.label || type}</span>
+                <span className="text-[10px] text-muted font-code">— {info?.desc || 'Package manager'}</span>
+                <span className="text-[10px] font-code text-accent ml-1">({count})</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {dependencies.manifests.map((manifest, idx) => (
-        <ManifestCard key={`${manifest.path}-${idx}`} manifest={manifest} />
-      ))}
+      {/* Per-manifest source paths */}
+      <div className="flex flex-wrap gap-2">
+        {dependencies.manifests.map((m, i) => (
+          <span key={`${m.path}-${i}`} className="pill text-xs">
+            <FileCode className="w-3 h-3" /> {m.path}
+          </span>
+        ))}
+      </div>
+
+      {/* Categorized sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {CATEGORY_ORDER.map(cat => {
+          const deps = categorized.get(cat);
+          if (!deps || deps.length === 0) return null;
+          return <CategorySection key={cat} category={cat} deps={deps} />;
+        })}
+      </div>
     </div>
   );
 }
