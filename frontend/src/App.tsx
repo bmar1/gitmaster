@@ -5,15 +5,10 @@ import { AnalysisView } from './components/AnalysisView';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { analyzeRepository } from './services/api';
 import { AnalysisResult } from './types';
-import { Terminal, AlertCircle } from 'lucide-react';
+import { BookOpen, AlertTriangle, RotateCcw } from 'lucide-react';
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
 });
 
 function AppContent() {
@@ -21,9 +16,7 @@ function AppContent() {
 
   const mutation = useMutation({
     mutationFn: analyzeRepository,
-    onSuccess: (data) => {
-      setResult(data);
-    },
+    onSuccess: (data) => setResult(data),
   });
 
   const handleAnalyze = (url: string) => {
@@ -37,75 +30,93 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen relative">
-      <div className="matrix-bg"></div>
-      <div className="scan-line"></div>
-
-      <div className="relative z-10 container mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-12">
-          <button
-            onClick={handleReset}
-            className="flex items-center space-x-2 text-primary hover:text-secondary transition-colors duration-300"
-          >
-            <Terminal className="w-6 h-6" />
-            <span className="text-sm tracking-wider font-bold">GITMASTER</span>
+    <div className="min-h-screen">
+      {/* Navigation */}
+      <header className="sticky top-0 z-50 bg-cream/80 backdrop-blur-md border-b border-linen/60">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <button onClick={handleReset} className="flex items-center gap-2.5 group">
+            <BookOpen className="w-5 h-5 text-sienna" />
+            <span className="font-display font-bold text-walnut text-lg tracking-tight">
+              Git<span className="text-sienna">Master</span>
+            </span>
           </button>
 
           {result && (
             <button
               onClick={handleReset}
-              className="px-4 py-2 text-sm border border-primary/30 rounded-lg
-                       hover:border-primary hover:bg-primary/10 transition-all duration-300
-                       tracking-wider"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-code text-faded
+                       hover:text-walnut border border-transparent hover:border-linen rounded-md transition-all"
             >
-              ← NEW ANALYSIS
+              <RotateCcw className="w-3.5 h-3.5" />
+              New analysis
             </button>
           )}
         </div>
+      </header>
 
-        {!result && !mutation.isPending && (
-          <RepoInput onAnalyze={handleAnalyze} isLoading={mutation.isPending} />
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto px-6">
+        {/* Landing */}
+        {!result && !mutation.isPending && !mutation.isError && (
+          <div className="py-24 md:py-32">
+            <RepoInput onAnalyze={handleAnalyze} isLoading={mutation.isPending} />
+          </div>
         )}
 
-        {mutation.isPending && <LoadingSpinner />}
+        {/* Loading */}
+        {mutation.isPending && (
+          <div className="py-16">
+            <LoadingSpinner />
+          </div>
+        )}
 
+        {/* Error */}
         {mutation.isError && (
-          <div className="max-w-2xl mx-auto glass-morphism p-6 rounded-xl border border-accent/50 animate-slide-up">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-accent font-bold mb-2 tracking-wider">ERROR</h3>
-                <p className="text-gray-300">
-                  {mutation.error instanceof Error ? mutation.error.message : 'An unexpected error occurred'}
-                </p>
-                <button
-                  onClick={handleReset}
-                  className="mt-4 px-4 py-2 text-sm bg-accent/20 border border-accent/50 rounded
-                           hover:bg-accent/30 transition-all duration-300 tracking-wider"
-                >
-                  TRY AGAIN
-                </button>
-              </div>
+          <div className="py-24 max-w-lg mx-auto text-center animate-rise">
+            <div className="paper-card p-8">
+              <AlertTriangle className="w-8 h-8 text-sienna mx-auto mb-4" />
+              <h3 className="font-display text-xl font-semibold text-walnut mb-2">Analysis failed</h3>
+              <p className="font-body text-bark/70 mb-6 leading-relaxed">
+                {mutation.error instanceof Error ? mutation.error.message : 'An unexpected error occurred.'}
+              </p>
+              <button
+                onClick={handleReset}
+                className="px-6 py-2.5 bg-walnut text-cream rounded-md font-display font-medium text-sm
+                         hover:bg-espresso transition-all duration-300"
+              >
+                Try again
+              </button>
             </div>
           </div>
         )}
 
-        {result && <AnalysisView result={result} />}
-      </div>
+        {/* Results */}
+        {result && (
+          <div className="py-12">
+            <AnalysisView result={result} />
+          </div>
+        )}
+      </main>
 
-      <footer className="relative z-10 text-center py-8 text-xs text-gray-700 tracking-wider">
-        <p>GITMASTER v1.0.0 · POWERED BY GITHUB API</p>
+      {/* Footer */}
+      <footer className="border-t border-linen mt-auto">
+        <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
+          <p className="font-code text-xs text-faded">
+            GitMaster v2.0 &middot; Powered by GitHub API
+          </p>
+          <p className="font-code text-xs text-faded">
+            60 req/hr unauthenticated
+          </p>
+        </div>
       </footer>
     </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />
     </QueryClientProvider>
   );
 }
-
-export default App;
