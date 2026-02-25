@@ -12,12 +12,12 @@ function TreeNode({ node, level = 0 }: { node: FileNode; level?: number }) {
     <div>
       <div
         className={`flex items-center py-1 px-2 rounded cursor-pointer group transition-colors duration-150
-                   hover:bg-parchment/60 ${isDirectory ? 'font-medium text-walnut' : 'text-bark/80'}`}
+                   hover:bg-surface-alt/60 ${isDirectory ? 'font-medium text-primary' : 'text-secondary'}`}
         style={{ paddingLeft: `${indent + 8}px` }}
         onClick={() => isDirectory && setIsOpen(!isOpen)}
       >
         {isDirectory && hasChildren ? (
-          <span className="mr-1.5 text-faded">
+          <span className="mr-1.5 text-muted">
             {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </span>
         ) : (
@@ -27,22 +27,22 @@ function TreeNode({ node, level = 0 }: { node: FileNode; level?: number }) {
         {isDirectory ? (
           isOpen ? <FolderOpen className="w-4 h-4 mr-2 text-ochre" /> : <Folder className="w-4 h-4 mr-2 text-ochre" />
         ) : (
-          <File className="w-4 h-4 mr-2 text-faded/60" />
+          <File className="w-4 h-4 mr-2 text-muted/60" />
         )}
 
-        <span className="text-sm font-code group-hover:text-sienna transition-colors truncate">
+        <span className="text-sm font-code group-hover:text-accent transition-colors truncate">
           {node.name}
         </span>
 
         {node.size !== undefined && node.size > 0 && !isDirectory && (
-          <span className="ml-auto text-[11px] text-faded/50 font-code pl-4 flex-shrink-0">
+          <span className="ml-auto text-[11px] text-muted/50 font-code pl-4 flex-shrink-0">
             {formatSize(node.size)}
           </span>
         )}
       </div>
 
       {isDirectory && isOpen && hasChildren && (
-        <div className="border-l border-linen" style={{ marginLeft: `${indent + 18}px` }}>
+        <div className="border-l border-border/50" style={{ marginLeft: `${indent + 18}px` }}>
           {node.children?.map((child, idx) => (
             <TreeNode key={`${child.path}-${idx}`} node={child} level={level + 1} />
           ))}
