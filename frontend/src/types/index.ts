@@ -9,9 +9,15 @@ export interface RepositoryInfo {
   description: string | null;
   stars: number;
   forks: number;
+  openIssues: number;
   language: string | null;
+  topics: string[];
   url: string;
   defaultBranch: string;
+  createdAt: string;
+  updatedAt: string;
+  size: number;
+  license: string | null;
 }
 
 export interface FileNode {
@@ -19,19 +25,75 @@ export interface FileNode {
   name: string;
   type: 'file' | 'directory';
   size?: number;
+  extension?: string;
   children?: FileNode[];
 }
 
-export interface DependencyInfo {
-  dependencies: Record<string, string>;
-  devDependencies: Record<string, string>;
+export interface LanguageStats {
+  name: string;
+  fileCount: number;
+  totalSize: number;
+  percentage: number;
+  color: string;
+}
+
+export type ManifestType =
+  | 'npm' | 'maven' | 'gradle' | 'pip' | 'pipenv' | 'poetry'
+  | 'cargo' | 'go' | 'gemfile' | 'composer' | 'nuget' | 'unknown';
+
+export interface DependencyManifest {
+  path: string;
+  type: ManifestType;
+  production: Record<string, string>;
+  development: Record<string, string>;
   totalCount: number;
+}
+
+export interface DependencyInfo {
+  manifests: DependencyManifest[];
+  totalDependencies: number;
+  totalDevDependencies: number;
+  totalCount: number;
+}
+
+export interface DetectedFramework {
+  name: string;
+  category: 'frontend' | 'backend' | 'testing' | 'build' | 'database' | 'devops' | 'styling' | 'utility';
+  confidence: number;
+  version?: string;
+  detectedFrom: string;
+}
+
+export interface ProjectInsight {
+  projectType: string;
+  structure: string;
+  frameworks: DetectedFramework[];
+  buildTools: string[];
+  hasTests: boolean;
+  hasCI: boolean;
+  hasDocs: boolean;
+  hasDocker: boolean;
+  hasLicense: boolean;
+  entryPoints: string[];
+  configFiles: string[];
+  keyDirectories: string[];
+}
+
+export interface FileStats {
+  totalFiles: number;
+  totalDirectories: number;
+  totalSize: number;
+  avgFileSize: number;
+  largestFiles: { path: string; size: number }[];
 }
 
 export interface AnalysisResult {
   repository: RepositoryInfo;
   fileTree: FileNode[];
-  dependencies: DependencyInfo | null;
+  fileStats: FileStats;
+  languages: LanguageStats[];
+  dependencies: DependencyInfo;
+  insights: ProjectInsight;
   summary: string;
   analyzedAt: string;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Zap } from 'lucide-react';
+import { Search, ArrowRight } from 'lucide-react';
 
 interface RepoInputProps {
   onAnalyze: (url: string) => void;
@@ -11,72 +11,65 @@ export function RepoInput({ onAnalyze, isLoading }: RepoInputProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      onAnalyze(url.trim());
-    }
+    if (url.trim()) onAnalyze(url.trim());
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto animate-fade-in">
-      <div className="text-center mb-8">
-        <h1 className="text-6xl font-bold mb-4 gradient-text tracking-tight">
-          GITMASTER
-        </h1>
-        <p className="text-gray-400 text-lg tracking-wide">
-          {'>'} DEEP REPOSITORY ANALYSIS SYSTEM
-        </p>
+    <div className="max-w-3xl mx-auto text-center">
+      <div className="animate-rise mb-4">
+        <span className="accent-tag mb-6 inline-block">Open Source</span>
       </div>
 
-      <form onSubmit={handleSubmit} className="glass-morphism p-8 rounded-xl terminal-glow">
-        <div className="flex items-center space-x-2 mb-4">
-          <Zap className="text-primary w-5 h-5" />
-          <label className="text-sm text-primary tracking-widest">
-            GITHUB_REPOSITORY_URL
-          </label>
-        </div>
+      <h1 className="font-display text-5xl md:text-7xl font-bold text-walnut mb-6 animate-rise-delay-1 leading-[1.1] tracking-tight">
+        Repository<br />
+        <span className="italic text-sienna">Analysis</span>
+      </h1>
 
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary/50 w-5 h-5" />
+      <p className="font-body text-lg text-bark/70 mb-12 max-w-lg mx-auto animate-rise-delay-2 leading-relaxed">
+        Paste a GitHub link. We'll map every file, trace every dependency, and surface the architecture beneath the code.
+      </p>
+
+      <form onSubmit={handleSubmit} className="animate-rise-delay-3">
+        <div className="paper-card p-2 flex items-center gap-2 max-w-2xl mx-auto transition-shadow duration-300 hover:shadow-card-hover">
+          <div className="flex items-center gap-3 flex-1 pl-4">
+            <Search className="w-5 h-5 text-faded flex-shrink-0" />
             <input
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://github.com/owner/repo"
+              placeholder="https://github.com/owner/repository"
               disabled={isLoading}
-              className="w-full pl-12 pr-4 py-4 bg-dark border border-primary/30 rounded-lg 
-                       text-gray-100 placeholder-gray-600 font-mono
-                       focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-300"
+              className="w-full py-3 bg-transparent font-code text-sm text-walnut placeholder-faded/50
+                       focus:outline-none disabled:opacity-50"
             />
           </div>
-          
           <button
             type="submit"
             disabled={isLoading || !url.trim()}
-            className="px-8 py-4 bg-primary text-dark font-bold rounded-lg
-                     hover:bg-secondary hover:shadow-lg hover:shadow-secondary/50
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-all duration-300 transform hover:scale-105
-                     flex items-center space-x-2 tracking-wider"
+            className="px-6 py-3 bg-walnut text-cream rounded-md font-display font-medium text-sm
+                     hover:bg-espresso disabled:opacity-40 disabled:cursor-not-allowed
+                     transition-all duration-300 flex items-center gap-2 flex-shrink-0"
           >
-            <span>{isLoading ? 'ANALYZING...' : 'ANALYZE'}</span>
-            {!isLoading && <span className="animate-pulse">▸</span>}
+            {isLoading ? 'Analyzing\u2026' : 'Analyze'}
+            {!isLoading && <ArrowRight className="w-4 h-4" />}
           </button>
         </div>
 
-        <div className="mt-4 text-xs text-gray-500 flex items-center space-x-2">
-          <span className="text-primary">▸</span>
-          <span>No authentication required · Public repositories only · Rate limited</span>
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-faded font-code animate-rise-delay-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sage"></span>
+            Public repos
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-ochre"></span>
+            Multi-language
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sienna"></span>
+            Deep analysis
+          </span>
         </div>
       </form>
-
-      <div className="mt-8 text-center">
-        <p className="text-xs text-gray-600 tracking-wide">
-          Powered by GitHub API · Built with React + TypeScript
-        </p>
-      </div>
     </div>
   );
 }
