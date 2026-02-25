@@ -1,7 +1,22 @@
 import { Octokit } from 'octokit';
 import { RepositoryInfo, GitHubTreeItem } from '../types';
 
-const octokit = new Octokit();
+const token = process.env.GITHUB_TOKEN || undefined;
+
+const octokit = new Octokit(token ? { auth: token } : {});
+
+export function isAuthenticated(): boolean {
+  return !!token;
+}
+
+export async function getRateLimit(): Promise<{ remaining: number; limit: number }> {
+  try {
+    const { data } = await octokit.rest.rateLimit.get();
+    return { remaining: data.rate.remaining, limit: data.rate.limit };
+  } catch {
+    return { remaining: 0, limit: 60 };
+  }
+}
 
 export async function getRepositoryInfo(owner: string, repo: string): Promise<RepositoryInfo> {
   try {
@@ -60,5 +75,63 @@ export async function getFileContent(owner: string, repo: string, path: string):
   } catch (error: any) {
     if (error.status === 404) throw new Error(`File not found: ${path}`);
     throw new Error(`Failed to fetch file content: ${error.message}`);
+  }
+}
+
+/**
+ * Batch-fetch multiple file contents in a single GraphQL request.
+ * Falls back to individual REST calls if GraphQL fails.
+ * Saves (N-1) API calls per analysis.
+ */
+export async function batchGetFileContents(
+  owner: string,
+  repo: string,
+  branch: string,
+  paths: string[],
+): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  if (paths.length === 0) return results;
+
+  try {
+    const aliases = paths.map((p, i) => {
+      const safeAlias = `f${i}`;
+      const expr = `${branch}:${p}`;
+      return `${safeAlias}: object(expression: ${JSON.stringify(expr)}) { ... on Blob { text } }`;
+    });
+
+    const query = `query($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        ${aliases.join('\n        ')}
+      }
+    }`;
+
+    const response: any = await octokit.graphql(query, { owner, name: repo });
+    const repoData = response.repository;
+
+    paths.forEach((p, i) => {
+      const alias = `f${i}`;
+      const blob = repoData[alias];
+      if (blob?.text) {
+        results.set(p, blob.text);
+      }
+    });
+
+    return results;
+  } catch {
+    // GraphQL unavailable or failed — fall back to individual REST calls
+    const fetches = await Promise.allSettled(
+      paths.map(async (p) => {
+        const content = await getFileContent(owner, repo, p);
+        return { path: p, content };
+      })
+    );
+
+    for (const r of fetches) {
+      if (r.status === 'fulfilled') {
+        results.set(r.value.path, r.value.content);
+      }
+    }
+
+    return results;
   }
 }

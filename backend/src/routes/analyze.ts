@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { AnalysisRequest } from '../types';
 import { parseGitHubUrl, validateGitHubUrl } from '../utils/parser';
-import { getRepositoryInfo, getFileTree } from '../services/github.service';
+import { getRepositoryInfo, getFileTree, isAuthenticated, getRateLimit } from '../services/github.service';
 import { buildFileTree, computeLanguageStats, computeFileStats } from '../services/fileTree.service';
 import { extractAllDependencies } from '../services/dependency.service';
 import { analyzeProject, generateSummary } from '../services/analyzer.service';
@@ -30,17 +30,17 @@ router.post('/', async (req: Request, res: Response) => {
     const { owner, repo } = parseGitHubUrl(url);
 
     const repositoryInfo = await getRepositoryInfo(owner, repo);
-    const githubTree = await getFileTree(owner, repo, repositoryInfo.defaultBranch);
+    const branch = repositoryInfo.defaultBranch;
+    const githubTree = await getFileTree(owner, repo, branch);
 
     const [fileTree, languages, fileStats, dependencies] = await Promise.all([
       Promise.resolve(buildFileTree(githubTree)),
       Promise.resolve(computeLanguageStats(githubTree)),
       Promise.resolve(computeFileStats(githubTree)),
-      extractAllDependencies(owner, repo, githubTree),
+      extractAllDependencies(owner, repo, githubTree, branch),
     ]);
 
     const insights = analyzeProject(githubTree, dependencies.manifests);
-
     const architecture = buildArchitectureGraph(githubTree, dependencies.manifests, insights, languages);
 
     const summary = generateSummary(
@@ -81,6 +81,17 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
   }
+});
+
+router.get('/status', async (_req: Request, res: Response) => {
+  const rateLimit = await getRateLimit();
+  res.json({
+    success: true,
+    data: {
+      authenticated: isAuthenticated(),
+      rateLimit,
+    },
+  });
 });
 
 export default router;

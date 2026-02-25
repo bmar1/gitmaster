@@ -1,5 +1,5 @@
 import { DependencyInfo, DependencyManifest, ManifestType, GitHubTreeItem } from '../types';
-import { getFileContent } from './github.service';
+import { batchGetFileContents } from './github.service';
 
 const MANIFEST_PATTERNS: { pattern: RegExp; type: ManifestType }[] = [
   { pattern: /^(.*\/)?package\.json$/, type: 'npm' },
@@ -38,26 +38,22 @@ export function findManifestFiles(tree: GitHubTreeItem[]): { path: string; type:
 export async function extractAllDependencies(
   owner: string,
   repo: string,
-  tree: GitHubTreeItem[]
+  tree: GitHubTreeItem[],
+  branch: string = 'main'
 ): Promise<DependencyInfo> {
   const manifestFiles = findManifestFiles(tree);
   const manifests: DependencyManifest[] = [];
 
-  const results = await Promise.allSettled(
-    manifestFiles.map(async (mf) => {
-      try {
-        const content = await getFileContent(owner, repo, mf.path);
-        return parseManifest(content, mf.path, mf.type);
-      } catch {
-        return null;
-      }
-    })
-  );
+  const paths = manifestFiles.map(mf => mf.path);
+  const contentsMap = await batchGetFileContents(owner, repo, branch, paths);
 
-  for (const r of results) {
-    if (r.status === 'fulfilled' && r.value) {
-      manifests.push(r.value);
-    }
+  for (const mf of manifestFiles) {
+    const content = contentsMap.get(mf.path);
+    if (!content) continue;
+    try {
+      const parsed = parseManifest(content, mf.path, mf.type);
+      if (parsed) manifests.push(parsed);
+    } catch { /* skip unparseable manifests */ }
   }
 
   const totalDependencies = manifests.reduce((sum, m) => sum + Object.keys(m.production).length, 0);
