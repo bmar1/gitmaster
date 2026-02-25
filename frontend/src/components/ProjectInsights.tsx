@@ -1,3 +1,11 @@
+/**
+ * ProjectInsights — Detailed project analysis display.
+ *
+ * Renders three overview cards (project type, health indicators, quick stats),
+ * a grid of detected framework cards with descriptions and confidence scores,
+ * and entry points / key directories / config files panels.
+ */
+
 import { ProjectInsight, DetectedFramework } from '../types';
 import {
   Layout, Server, TestTube2, Wrench, Database, Cloud, Paintbrush, Settings,

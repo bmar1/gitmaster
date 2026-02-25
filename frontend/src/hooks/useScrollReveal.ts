@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+/** Adds the `revealed` CSS class when the element scrolls into view. Fires once. */
 export function useScrollReveal(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
 

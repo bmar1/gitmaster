@@ -1,3 +1,11 @@
+/**
+ * ArchitectureGraph — Interactive system map powered by ReactFlow.
+ *
+ * Visualizes modules, entry points, hotspots, config files, and external
+ * dependency groups as a zoomable/pannable node graph. Uses a recursive
+ * tree layout algorithm to position nodes hierarchically from root outward.
+ */
+
 import { useMemo, useCallback } from 'react';
 import {
   ReactFlow,
@@ -96,6 +104,7 @@ function ArchNode({ data }: NodeProps) {
 
 const nodeTypes = { archNode: ArchNode };
 
+/** Recursively positions nodes in a top-down tree layout and converts graph data to ReactFlow format. */
 function layoutNodes(graph: ArchGraph): { nodes: Node[]; edges: Edge[] } {
   const adjacency = new Map<string, string[]>();
   for (const edge of graph.edges) {

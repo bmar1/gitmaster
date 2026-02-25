@@ -1,3 +1,18 @@
+/**
+ * Architecture Service
+ *
+ * Builds a visual graph representation of the repository's architecture.
+ * The output drives the interactive system map on the frontend (ReactFlow).
+ *
+ * Graph construction strategy:
+ *  1. Create a root node for files at the repo root.
+ *  2. Create module nodes for each top-level directory + their immediate subdirectories.
+ *  3. Mark entry point files as "entry" nodes and high-file-count dirs as hotspots.
+ *  4. Create external dependency group nodes (one per package manager ecosystem).
+ *  5. Add config file nodes for root-level configuration files.
+ *  6. Connect everything with edges forming a hierarchy.
+ */
+
 import {
   GitHubTreeItem,
   DependencyManifest,
@@ -8,6 +23,7 @@ import {
   LanguageStats,
 } from '../types';
 
+/** Maps file extensions to language names for node language tagging. */
 const EXTENSION_LANG: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', js: 'JavaScript', jsx: 'JavaScript',
   py: 'Python', java: 'Java', kt: 'Kotlin', rs: 'Rust', go: 'Go',
@@ -15,6 +31,14 @@ const EXTENSION_LANG: Record<string, string> = {
   vue: 'Vue', svelte: 'Svelte', html: 'HTML', css: 'CSS', scss: 'SCSS',
 };
 
+/**
+ * Constructs the full architecture graph from raw repository data.
+ *
+ * @param tree     - Flat list of all blobs and trees from the GitHub API
+ * @param manifests - Parsed dependency manifests (npm, maven, etc.)
+ * @param insights  - Project analysis results (frameworks, entry points, config files)
+ * @param _languages - Language statistics (reserved for future heatmap coloring)
+ */
 export function buildArchitectureGraph(
   tree: GitHubTreeItem[],
   manifests: DependencyManifest[],
@@ -29,9 +53,11 @@ export function buildArchitectureGraph(
 
   const topDirs = dirs.filter(d => !d.path.includes('/'));
 
+  // Directories with significantly more files than average are flagged as hotspots
   const avgFileCount = files.length / Math.max(topDirs.length, 1);
   const hotspotThreshold = avgFileCount * 1.5;
 
+  // Root node represents files at the repository root (README, config, etc.)
   const rootFiles = files.filter(f => !f.path.includes('/'));
   nodes.push({
     id: 'root',
@@ -44,12 +70,16 @@ export function buildArchitectureGraph(
     isHotspot: false,
   });
 
+  // --- Top-level directory nodes ---
   for (const dir of topDirs) {
     const dirPath = dir.path;
     const childFiles = files.filter(f => f.path.startsWith(dirPath + '/'));
     const childDirs = dirs.filter(d => d.path.startsWith(dirPath + '/'));
 
     const dirLanguages = getLanguagesForFiles(childFiles);
+
+    // Associate frameworks with directories based on conventional naming
+    // (e.g. "frontend" dir gets frontend frameworks, "backend" dir gets backend ones)
     const dirFrameworks = insights.frameworks
       .filter(fw => {
         if (fw.detectedFrom.includes(dirPath)) return true;
@@ -78,6 +108,7 @@ export function buildArchitectureGraph(
 
     edges.push({ source: 'root', target: dirPath });
 
+    // Depth-2 subdirectories (e.g. src/components, src/services)
     const importantSubdirs = childDirs.filter(d => {
       const parts = d.path.split('/');
       return parts.length === 2;
@@ -105,6 +136,8 @@ export function buildArchitectureGraph(
     }
   }
 
+  // --- Entry point file nodes ---
+  // If an entry point wasn't already represented by a directory node, add it as a file node
   for (const ep of insights.entryPoints) {
     const existingNode = nodes.find(n => n.id === ep);
     if (!existingNode) {
@@ -121,6 +154,7 @@ export function buildArchitectureGraph(
         isHotspot: false,
       });
 
+      // Attach to nearest parent directory node, or root if none exists
       const parentDir = ep.split('/').slice(0, -1).join('/');
       const parentNode = nodes.find(n => n.id === parentDir);
       if (parentNode) {
@@ -131,6 +165,8 @@ export function buildArchitectureGraph(
     }
   }
 
+  // --- External dependency group nodes ---
+  // Groups manifests by type (npm, maven, etc.) so each ecosystem is one node
   const manifestGroups = new Map<string, DependencyManifest[]>();
   for (const m of manifests) {
     const group = manifestGroups.get(m.type) || [];
@@ -153,6 +189,7 @@ export function buildArchitectureGraph(
       isHotspot: false,
     });
 
+    // Connect each manifest's parent directory to the external dep node
     for (const m of group) {
       const dir = m.path.split('/').slice(0, -1).join('/') || 'root';
       const sourceNode = nodes.find(n => n.id === dir);
@@ -164,6 +201,7 @@ export function buildArchitectureGraph(
     }
   }
 
+  // --- Root-level config file nodes (up to 5) ---
   for (const confFile of insights.configFiles.slice(0, 5)) {
     if (confFile.includes('/')) continue;
     const existingNode = nodes.find(n => n.id === confFile);
@@ -185,6 +223,7 @@ export function buildArchitectureGraph(
   return { nodes, edges };
 }
 
+/** Tallies file extensions within a set of files and returns the top 3 languages. */
 function getLanguagesForFiles(files: GitHubTreeItem[]): string[] {
   const langCount = new Map<string, number>();
   for (const f of files) {

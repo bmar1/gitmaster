@@ -1,5 +1,20 @@
+/**
+ * Analyzer Service
+ *
+ * Performs high-level project analysis by cross-referencing the file tree
+ * with parsed dependency data. Detects frameworks, classifies the project type,
+ * identifies structure patterns (monorepo, multi-module, etc.), and generates
+ * a human-readable summary.
+ */
+
 import { GitHubTreeItem, DetectedFramework, ProjectInsight, DependencyManifest } from '../types';
 
+/**
+ * Framework detection signatures.
+ * Each entry defines the framework name, its functional category, and a set
+ * of indicators (dependency names, file patterns, directory patterns).
+ * The more indicators match, the higher the detection confidence.
+ */
 const FRAMEWORK_SIGNATURES: {
   name: string;
   category: DetectedFramework['category'];
@@ -50,10 +65,17 @@ const FRAMEWORK_SIGNATURES: {
   { name: 'Prettier', category: 'utility', indicators: [{ type: 'dep', pattern: 'prettier' }, { type: 'file', pattern: '.prettierrc' }] },
 ];
 
+/**
+ * Top-level project analysis. Collects all dependency names into a set,
+ * splits the tree into files and directories, then runs detection passes
+ * for frameworks, project type, structure, tests, CI, docs, and more.
+ */
 export function analyzeProject(
   tree: GitHubTreeItem[],
   manifests: DependencyManifest[]
 ): ProjectInsight {
+  // Flatten all deps (prod + dev) across every manifest into a single lowercase set
+  // so framework detection can do fast O(1) lookups regardless of ecosystem
   const allDeps = new Set<string>();
   for (const m of manifests) {
     for (const dep of Object.keys(m.production)) allDeps.add(dep.toLowerCase());
@@ -101,6 +123,11 @@ export function analyzeProject(
   };
 }
 
+/**
+ * Scores each framework signature against the repo's dependency set, files, and dirs.
+ * Confidence = (matched indicators) / (total indicators), capped at 1.0.
+ * Results are sorted by confidence descending so the most certain detections come first.
+ */
 function detectFrameworks(
   deps: Set<string>,
   files: string[],
@@ -151,6 +178,10 @@ function detectFrameworks(
   return detected.sort((a, b) => b.confidence - a.confidence);
 }
 
+/**
+ * Classifies the overall project type based on which framework categories
+ * were detected and which conventional directories exist.
+ */
 function detectProjectType(
   frameworks: DetectedFramework[],
   files: string[],
@@ -170,7 +201,12 @@ function detectProjectType(
   return 'Project';
 }
 
+/**
+ * Determines repository structure by analyzing where manifest files live
+ * and checking for conventional monorepo directories (packages/, apps/).
+ */
 function detectStructure(dirs: string[], manifests: DependencyManifest[]): string {
+  // Group manifests by their parent directory to see if code lives in multiple modules
   const uniquePaths = new Set(manifests.map(m => {
     const parts = m.path.split('/');
     return parts.length > 1 ? parts.slice(0, -1).join('/') : 'root';
@@ -190,6 +226,10 @@ function detectStructure(dirs: string[], manifests: DependencyManifest[]): strin
   return 'Single Module';
 }
 
+/**
+ * Identifies likely entry point files by checking for conventional names
+ * (index.ts, main.py, main.go, etc.) relative to each manifest's directory.
+ */
 function findEntryPoints(files: string[], manifests: DependencyManifest[]): string[] {
   const entries: string[] = [];
 
@@ -212,11 +252,13 @@ function findEntryPoints(files: string[], manifests: DependencyManifest[]): stri
   return [...new Set(entries)];
 }
 
+/** Matches filenames against common config file naming conventions. */
 function isConfigFile(path: string): boolean {
   const name = path.split('/').pop() || '';
   return /^(\..+rc\.?(js|json|yml|yaml|cjs|mjs)?|tsconfig.*\.json|jest\.config.*|vite\.config.*|webpack\.config.*|next\.config.*|nuxt\.config.*|tailwind\.config.*|postcss\.config.*|babel\.config.*|\.env\.example|Makefile|Dockerfile|docker-compose.*|\.gitignore|\.editorconfig|\.prettierrc.*|\.eslintrc.*)$/.test(name);
 }
 
+/** Filters directories to only those at depth ≤ 2 with architecturally significant names. */
 function findKeyDirectories(dirs: string[]): string[] {
   const important = ['src', 'lib', 'app', 'api', 'pages', 'components', 'services',
     'utils', 'hooks', 'models', 'controllers', 'routes', 'middleware',
@@ -228,6 +270,11 @@ function findKeyDirectories(dirs: string[]): string[] {
   });
 }
 
+/**
+ * Generates a human-readable summary paragraph from the analysis results.
+ * Combines the repo description, detected stack, structure, file count,
+ * dependency count, language breakdown, and project health badges.
+ */
 export function generateSummary(
   repoDescription: string | null,
   _repoLanguage: string | null,

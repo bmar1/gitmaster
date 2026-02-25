@@ -1,3 +1,5 @@
+/** API client — wraps Axios with the backend base URL and typed response handling. */
+
 import axios from 'axios';
 import { AnalysisRequest, AnalysisResult, ApiResponse } from '../types';
 

@@ -1,3 +1,11 @@
+/**
+ * App — Root component.
+ *
+ * Manages three top-level states: landing (input), loading, and results.
+ * Uses TanStack Query for the analysis mutation and fetches rate-limit
+ * info from the backend to display in the footer.
+ */
+
 import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
 import { RepoInput } from './components/RepoInput';
