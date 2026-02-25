@@ -19,7 +19,7 @@ export function buildArchitectureGraph(
   tree: GitHubTreeItem[],
   manifests: DependencyManifest[],
   insights: ProjectInsight,
-  languages: LanguageStats[],
+  _languages: LanguageStats[],
 ): ArchitectureGraph {
   const nodes: ArchitectureNode[] = [];
   const edges: ArchitectureEdge[] = [];
