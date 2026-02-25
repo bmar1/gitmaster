@@ -13,6 +13,7 @@ export interface RepositoryInfo {
   language: string | null;
   topics: string[];
   url: string;
+  homepage: string | null;
   defaultBranch: string;
   createdAt: string;
   updatedAt: string;
@@ -97,6 +98,28 @@ export interface FileStats {
   largestFiles: { path: string; size: number }[];
 }
 
+export interface ArchitectureNode {
+  id: string;
+  label: string;
+  type: 'module' | 'entry' | 'config' | 'external' | 'root';
+  fileCount: number;
+  totalSize: number;
+  languages: string[];
+  frameworks: string[];
+  isHotspot: boolean;
+}
+
+export interface ArchitectureEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface ArchitectureGraph {
+  nodes: ArchitectureNode[];
+  edges: ArchitectureEdge[];
+}
+
 export interface AnalysisResult {
   repository: RepositoryInfo;
   fileTree: FileNode[];
@@ -104,6 +127,7 @@ export interface AnalysisResult {
   languages: LanguageStats[];
   dependencies: DependencyInfo;
   insights: ProjectInsight;
+  architecture: ArchitectureGraph;
   summary: string;
   analyzedAt: string;
 }

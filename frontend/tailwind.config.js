@@ -7,20 +7,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream:    '#faf6f0',
-        parchment:'#f0ebe2',
-        linen:    '#e8e0d4',
-        walnut:   '#2c1810',
-        espresso: '#1a0f0a',
-        bark:     '#4a3728',
-        sienna:   '#c45d3e',
-        rust:     '#a0432e',
-        ochre:    '#b8860b',
-        forest:   '#1a3a2a',
-        sage:     '#6b8f71',
-        mist:     '#8a9a8e',
-        ink:      '#2d2926',
-        faded:    '#7a7067',
+        surface:     '#0e0e14',
+        'surface-1': '#161620',
+        'surface-2': '#1c1c28',
+        'surface-alt':'#22222e',
+        border:      '#2a2a38',
+        'border-hi': '#3a3a4a',
+
+        primary:     '#e8e0d4',
+        secondary:   '#b0a898',
+        muted:       '#706860',
+
+        accent:      '#e07050',
+        'accent-dim':'#c45d3e',
+        'accent-glow':'rgba(224, 112, 80, 0.15)',
+        ochre:       '#d4a020',
+        'ochre-dim': '#b8860b',
+        sage:        '#7daa84',
+        forest:      '#2e6b45',
+        mist:        '#99aa9e',
       },
       fontFamily: {
         display: ['"Playfair Display"', 'Georgia', 'serif'],
@@ -35,6 +40,7 @@ export default {
         'rise-delay-4': 'rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both',
         'gentle-fade': 'gentleFade 0.5s ease-out both',
         'expand': 'expand 0.3s ease-out',
+        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
       },
       keyframes: {
         rise: {
@@ -49,11 +55,16 @@ export default {
           '0%': { opacity: '0', maxHeight: '0' },
           '100%': { opacity: '1', maxHeight: '2000px' },
         },
+        pulseGlow: {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '1' },
+        },
       },
       boxShadow: {
-        'card': '0 1px 3px rgba(44, 24, 16, 0.06), 0 4px 12px rgba(44, 24, 16, 0.04)',
-        'card-hover': '0 4px 12px rgba(44, 24, 16, 0.1), 0 8px 24px rgba(44, 24, 16, 0.06)',
-        'elevated': '0 8px 24px rgba(44, 24, 16, 0.08), 0 16px 48px rgba(44, 24, 16, 0.05)',
+        'card': '0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2)',
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3)',
+        'elevated': '0 8px 24px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.3)',
+        'glow-accent': '0 0 20px rgba(224, 112, 80, 0.15)',
       },
     },
   },
