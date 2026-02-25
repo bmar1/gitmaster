@@ -5,6 +5,7 @@ import { getRepositoryInfo, getFileTree } from '../services/github.service';
 import { buildFileTree, computeLanguageStats, computeFileStats } from '../services/fileTree.service';
 import { extractAllDependencies } from '../services/dependency.service';
 import { analyzeProject, generateSummary } from '../services/analyzer.service';
+import { buildArchitectureGraph } from '../services/architecture.service';
 
 const router = Router();
 
@@ -40,6 +41,8 @@ router.post('/', async (req: Request, res: Response) => {
 
     const insights = analyzeProject(githubTree, dependencies.manifests);
 
+    const architecture = buildArchitectureGraph(githubTree, dependencies.manifests, insights, languages);
+
     const summary = generateSummary(
       repositoryInfo.description,
       repositoryInfo.language,
@@ -58,6 +61,7 @@ router.post('/', async (req: Request, res: Response) => {
         languages,
         dependencies,
         insights,
+        architecture,
         summary,
         analyzedAt: new Date().toISOString(),
       },

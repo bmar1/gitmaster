@@ -18,6 +18,7 @@ export async function getRepositoryInfo(owner: string, repo: string): Promise<Re
       language: data.language,
       topics: data.topics || [],
       url: data.html_url,
+      homepage: data.homepage || null,
       defaultBranch: data.default_branch,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
