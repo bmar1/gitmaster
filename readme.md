@@ -4,6 +4,8 @@
 
 GitMaster is a web application that analyzes GitHub repositories and provides comprehensive insights into their structure, dependencies, and architecture.
 
+<img src="frontend/public/image.png">
+
 ## Features
 
 - **Repository Analysis**: Fetch and analyze any public GitHub repository
