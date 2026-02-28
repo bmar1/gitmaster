@@ -66,7 +66,7 @@ cd gitmaster
 2. Install backend dependencies:
 ```bash
 cd backend
-npm install
+npm i
 ```
 
 3. Install frontend dependencies:
