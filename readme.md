@@ -12,7 +12,6 @@ GitMaster is a web application that analyzes GitHub repositories and provides co
 - **File Tree Visualization**: Interactive hierarchical file structure
 - **Dependency Extraction**: View all dependencies and devDependencies
 - **Repository Insights**: Stars, forks, language, and metadata
-- **Clean UI**: Terminal-inspired design with modern aesthetics
 
 ## Tech Stack
 
@@ -129,9 +128,6 @@ Analyzes a GitHub repository.
 
 ## Deployment
 
-### Vercel Deployment
-
-The project is configured to work on Vercel out of the box.
 
 **Backend:**
 - Deploy as a serverless function
@@ -148,15 +144,6 @@ The project is configured to work on Vercel out of the box.
 - GitHub API rate limit: 60 requests/hour (unauthenticated)
 - No caching or persistent storage
 
-## Future Enhancements
-
-- [ ] Support for private repositories with GitHub tokens
-- [ ] Multi-language dependency support (Python, Rust, Go, Java)
-- [ ] Dependency graph visualization
-- [ ] Code complexity metrics
-- [ ] Architecture pattern detection
-- [ ] API endpoint extraction
-- [ ] Caching layer for faster repeated analyses
 
 ## Documentation
 
